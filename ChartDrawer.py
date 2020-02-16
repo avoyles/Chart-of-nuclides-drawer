@@ -62,6 +62,11 @@ import argparse
 import re
 import xml.dom.minidom
 from Nuclide import *
+from svglib.svglib import svg2rlg
+from reportlab.graphics import renderPDF
+import cairosvg
+import subprocess
+
 
 # Definition of colors used for decay modes
 COLORS = { 'is': '#000000',
@@ -257,6 +262,38 @@ def _draw_text(layer, position, font_color, font_size, text):
     text_el.setAttribute("y", '{}'.format(y))
     layer.appendChild(text_el)
 
+def _draw_text_superscript(layer, position, font_color, font_size, text,text2):
+    """Draws text"""
+    x = position[0]
+    y = position[1]
+    text_node = svg.createTextNode(text)
+    sup_node = svg.createTextNode(text2)
+
+    text_el = svg.createElement("text")
+    text_el.appendChild(text_node)
+    text_el.setAttribute("text-anchor", "left")
+    text_el.setAttribute("font-family", "sans")
+    text_el.setAttribute(
+                "style", 
+                "font-size:{}px; fill:{}".format(font_size, font_color))
+    text_el.setAttribute("x", '{0:.2f}'.format(x))
+    text_el.setAttribute("y", '{}'.format(y))
+    layer.appendChild(text_el)    
+
+    sup_el = svg.createElement("text")
+    sup_el.appendChild(sup_node)
+    # sup_el.setAttribute("text", 'Supscrit Text')
+    sup_el.setAttribute("text-anchor", "middle")
+    sup_el.setAttribute("font-family", "sans")
+    sup_el.setAttribute(
+                "style", 
+                "font-size:{}px; fill:{}".format(font_size-2, font_color))
+    sup_el.setAttribute("x", '{0:.2f}'.format(x))
+    sup_el.setAttribute("y", '{}'.format(y))
+    # sup_el.setAttribute("dx", '1em')
+    # sup_el.setAttribute("dy", '.9em')
+    layer.appendChild(sup_el)  
+
 def _draw_line(layer, begin, end, name):
     """Draws line, begin and end should be a lists of [x,y]
     coordinates of line"""
@@ -408,12 +445,20 @@ def draw_nuclide(nuclide, layers, position, args):
 
     font_color = FONT_COLOR_BRIGHT if primary_color == COLORS['is'] else FONT_COLOR_DARK
     if args.names:
-        element_name = nuclide.element + " " + str(nuclide.A) 
+        # Swapping from <element symbol> AAA  to:   ^{AAA} <element symbol>
+        # element_name = nuclide.element + " " + str(nuclide.A) 
+        # element_name = nuclide.element 
+        element_name = "$*" + str(nuclide.A) + "*$" + nuclide.element 
+        # element_name = "<sup>" + str(nuclide.A) + "</sup>" + nuclide.element 
+        # element_name = "heat".sub() + str(nuclide.A) + nuclide.element 
+        # element_name2 = str(nuclide.A) 
 
         tx = position[0] + SIZE_SHAPE / 2 
         ty = position[1] + SIZE_GAP + 1.25 * SIZE_FONT
 
         _draw_text(layers[3], [tx, ty], font_color, SIZE_FONT, element_name)
+        # _draw_text_superscript(layers[3], [tx, ty], font_color, SIZE_FONT, element_name, element_name2)
+        # _draw_text(layers[3], [tx-7, ty-3], font_color, SIZE_FONT-2, element_name2)
 
     if (args.halflives and not(nuclide.half_life['extrapolated'] == 'True')):
         # For stable and quasi-stable nuclide print isotopic abundance
@@ -432,7 +477,7 @@ def draw_nuclide(nuclide, layers, position, args):
                 if nuclide.half_life['relation'] != '=':
                     half_life_string = nuclide.half_life['relation'] + ' ' + half_life_string
         else:
-            half_life_string = nuclide.decay_modes[0]['value']
+            half_life_string = nuclide.decay_modes[0]['value']+'%'
 
         # text position center
         tx = position[0] + SIZE_SHAPE / 2
@@ -486,6 +531,14 @@ def draw_numbers(layers, shape, n_limits, z_limits, size):
             _draw_text(layers[3], [x, y], '#000000', 
                        SIZE_FONT * 1.5, str(z + z_limits[0]))
 
+class FooAction(argparse.Action):
+        def __init__(self, option_strings, dest, nargs=None, **kwargs):
+            if nargs is not None:
+                raise ValueError("nargs not allowed")
+            super(FooAction, self).__init__(option_strings, dest, **kwargs)
+        def __call__(self, parser, namespace, values, option_string=None):
+            print('%r %r %r' % (namespace, values, option_string))
+            setattr(namespace, self.dest, values)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Create SVG format chart of nuclides')
@@ -504,11 +557,40 @@ if __name__ == "__main__":
                         help='Disable numbers along axis')
     parser.add_argument('--unknown', action='store_false', 
                         help='Disable isotopes with unknown decay mode')
+    # parser.add_argument('--t', action='store_true', 
+    #                     dest='list_of_targets', type=str,  help='Enable names for target isotope(s)')
+    parser.add_argument('--p', 
+        # action='FooAction',
+            # action='store', 
+                        dest="list_of_products", 
+                        type=str,  help='Enable names for product isotope(s)')
+    parser.add_argument('--t', 
+        # action='FooAction',
+            # action='store', 
+                        dest="list_of_targets", 
+                        type=str,  help='Enable names for target isotope(s)')
     parser.add_argument('--z', nargs=2, default=[0,120],
                         dest='Z', type=int, help='Atomic number Z range (%(type)s), default: %(default)s')
     parser.add_argument('--n', nargs=2, default=[0,180],
                         dest='N', type=int, help='Neutron number N range (%(type)s), default: %(default)s')
     args = parser.parse_args()
+    # print(parser.parse_args())
+
+    # print(args.N, args.Z)
+
+    if args.list_of_products is not None:
+        # Only print target names
+        args.names=False
+        args.halflives=False
+        print('Drawing products: ',args.list_of_products) 
+        individual_products = args.list_of_products.split(' ')
+
+    if args.list_of_targets is not None:
+        # Only print target names
+        args.names=False
+        args.halflives=False
+        print('Drawing targets : ',args.list_of_targets) 
+        individual_targets = args.list_of_targets.split(' ')
 
     if args.N[0] > args.N[1]:
         print('Wrong N range {}, {}'.format(args.N[0], args.N[1]))
@@ -550,9 +632,11 @@ if __name__ == "__main__":
 
     n_limits = [None, None]
     z_limits = [None, None]
-    data = load_xml_nuclear_table(args.datafile, args.N, args.Z,
-                                  n_limits, z_limits)
-   
+    # print(args.datafile, args.N, args.Z, n_limits, z_limits)
+    data = load_xml_nuclear_table(args.datafile, args.N, args.Z, n_limits, z_limits)
+    # print(data)
+    # lookup_data = load_xml_nuclear_table(args.datafile, args.N, args.Z, n_limits, z_limits) 
+    # print(lookup_data)
     # Size of picture is now calculated, and proper attributes
     # are assigned to root element
     # Additional margins are added to provide space for numbers on the 
@@ -576,8 +660,12 @@ if __name__ == "__main__":
     n_magic = {}
     z_magic = {}
     for nuclide in data:
+        args.names=False
+        args.halflives=False
         N = nuclide.N
         Z = nuclide.Z
+        target_element = nuclide.element
+        target_decay_mode = nuclide.decay_modes[0]
         if N in MAGIC_NUMBERS:
             if n_magic.get(N) is not None:
                 if n_magic[N][1] < Z:
@@ -590,6 +678,92 @@ if __name__ == "__main__":
                     z_magic[Z][1] = N
             else:
                 z_magic[Z] = [N, N]
+
+        # Draw names for any specified product isotopes        
+        if args.list_of_products is not None:
+            # args.names=False
+            # args.halflives=False
+            for target in individual_products:
+                # print('Nuclide: ',str(Z+N)+target_element)
+                cleaned_target = re.sub(r'\d+', '', target)
+                # print('Cleaned Target: ',cleaned_target)
+                try:
+                    cleaned_AAA = re.search('(\d+?)',  target).group(1)
+                except:
+                    cleaned_AAA = '-1'
+                # print('Cleaned AAA: ',cleaned_AAA)    
+                # print("Cleaned target: ", cleaned_target)
+                # print(type(args.list_of_targets))
+                # print('Current nuclide: ',str(Z+N),target_element)
+                if target_element == cleaned_target: 
+                    # print('Cleaned Target: ',cleaned_target)
+                    # print('Cleaned AAA: ',cleaned_AAA)
+                    if (str(Z+N)+target_element) == target:
+                        # in basic_decay_modes:
+                        # and target_decay_mode =='is':
+                        print("Success!: ", str(Z+N),target_element)
+                        try:
+                            my_flag=True
+                            args.names=True
+                            args.halflives=True
+                        # draw_nuclide(nuclide, layers, [x, y], args)
+                        except IndexError:
+                            print('IndexError: nuclide {}'.format(nuclide))
+                        # args.names=False
+                        # args.halflives=False
+                    # else:
+                    #     args.names=False
+                    #     args.halflives=False
+
+
+        # Draw names for any natural abundance target isotopes or specified target isotopes        
+        if args.list_of_targets is not None:
+            # args.names=False
+            # args.halflives=False
+            for target in individual_targets:
+                # print('Nuclide: ',str(Z+N)+target_element)
+                cleaned_target = re.sub(r'\d+', '', target)
+                # print('Cleaned Target: ',cleaned_target)
+                try:
+                    cleaned_AAA = re.search('(\d+?)',  target).group(1)
+                except:
+                    cleaned_AAA = '-1'
+                # print('Cleaned AAA: ',cleaned_AAA)    
+                # print("Cleaned target: ", cleaned_target)
+                # print(type(args.list_of_targets))
+                # print('Current nuclide: ',str(Z+N),target_element)
+                if target_element == cleaned_target: 
+                    # print('Cleaned Target: ',cleaned_target)
+                    # print('Cleaned AAA: ',cleaned_AAA)
+                    if  int(cleaned_AAA)==0 and nuclide.decay_modes[0]['mode'] =='is':
+                        # in basic_decay_modes:
+                        # and target_decay_mode =='is':
+                        print("Success!: ", str(Z+N),target_element)
+                        try:
+                            my_flag=True
+                            args.names=True
+                            args.halflives=True
+                        # draw_nuclide(nuclide, layers, [x, y], args)
+                        except IndexError:
+                            print('IndexError: nuclide {}'.format(nuclide))
+                        # args.names=False
+                        # args.halflives=False
+                    elif (str(Z+N)+target_element) == target:
+                        # in basic_decay_modes:
+                        # and target_decay_mode =='is':
+                        print("Success!: ", str(Z+N),target_element)
+                        try:
+                            my_flag=True
+                            args.names=True
+                            args.halflives=True
+                        # draw_nuclide(nuclide, layers, [x, y], args)
+                        except IndexError:
+                            print('IndexError: nuclide {}'.format(nuclide))
+                        # args.names=False
+                        # args.halflives=False
+                    # else:
+                    #     args.names=False
+                    #     args.halflives=False
 
         shape[N - n_limits[0]][Z - z_limits[0]] = True
 
@@ -604,5 +778,77 @@ if __name__ == "__main__":
         draw_magic_lines(layers, n_magic, z_magic, n_limits, z_limits, size)
     if args.numbers:
         draw_numbers(layers, shape, n_limits, z_limits, size)
+    # if t:
+    #   print(t)    
+    #   print(list_of_targets) 
+    # print(_element)
+    # if args.list_of_targets is not None:
+    #   print(args.list_of_targets) 
+    #   individual_targets = args.list_of_targets.split(' ')
+    #   for target in individual_targets:
+    #       cleaned_target = re.sub(r'\d+', '', target)
+    #       print("Cleaned target: ", cleaned_target)
+    #   # print(type(args.list_of_targets))
+       #    for nuclide in data:
+       #        target_N = nuclide.N
+       #        target_Z = nuclide.Z
+       #        target_element = nuclide.element
+       #        target_decay_mode = nuclide.decay_modes[0]
+       #        # print(target_decay_mode)
+       #        # print(str(target_Z+target_N),target_element)
+       #        # print(nuclide.decay_modes)
+
+       #        if target_element == cleaned_target: 
+       #            if nuclide.decay_modes[0]['mode'] =='is':
+       #            # in basic_decay_modes:
+       #                # and target_decay_mode =='is':
+       #                print("Success!: ", str(target_Z+target_N),target_element)
+       #                try:
+       #                    args.names=True
+       #                    args.halflives=True
+       #                    draw_nuclide(nuclide, layers, [x, y], args)
+       #                except IndexError:
+       #                    print('IndexError: nuclide {}'.format(nuclide))
+       #                args.names=False
+       #                args.halflives=False
+
+        # print(data)
+        # print(args.datafile, args.N, args.Z, n_limits, z_limits)
+        # lookup_data = load_xml_nuclear_table(args.datafile, args.N, args.Z, n_limits, z_limits) 
+
+
+        # lookup_data = load_xml_nuclear_table(args.datafile, args.N, args.Z,
+     #                              n_limits, z_limits) 
+        # print(lookup_data)
 
     args.outfile.write(svg.toprettyxml(indent="  ", encoding="utf-8").decode("utf-8"))
+
+
+    # print(args.outfile)
+    outfile_string = str(args.outfile).split("name='")[1].split("' mode='w'")[0]
+
+    tempfile = open(outfile_string).read()
+    # print(type(tempfile))
+    # print(tempfile)
+    tempfile = tempfile.replace('$*','<tspan baseline-shift = "super">')
+    tempfile = tempfile.replace('*$','</tspan>')
+    open(outfile_string, 'w').write(tempfile)
+
+    # # Replace placeholders for superscript
+    # # print(args.outfile)
+    # # open('newfile.svg', 'w').write(open('outfile.svg').read().replace('$*','<tspan dx="-1ex" dy="+1ex"><tspan class="subscript">'))
+    # # open('newfile.svg', 'w').write(open('outfile.svg').read().replace('$*','<tspan class="subscript" dy="+5px">'))
+    # open('newfile.svg', 'w').write(open('outfile.svg').read().replace('$*','<tspan baseline-shift = "super">'))
+    # # open('newfile.svg', 'w').write(open('outfile.svg').read().replace('$*','<tspan dy="-7" font-size=".7em">'))
+    # # open('outfile.svg', 'w').write(open('newfile.svg').read().replace('*$','</tspan></tspan>'))
+    # open('outfile.svg', 'w').write(open('newfile.svg').read().replace('*$','</tspan>'))
+
+    # drawing = svg2rlg("outfile.svg")
+    # renderPDF.drawToFile(drawing, "outfile.pdf")
+    # cairosvg.svg2pdf(url='outfile.svg', write_to='image.pdf')
+
+    # Save to PDF via inkscape
+    bashCommand = "inkscape " + outfile_string + " -A " + outfile_string[:-3] + "pdf"
+    # print(bashCommand)
+    process = subprocess.Popen(bashCommand.split(), stdout=subprocess.PIPE)
+    # output, error = process.communicate()

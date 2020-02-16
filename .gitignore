@@ -10,6 +10,7 @@ nubase2016.txt
 test.py
 # Output
 *.svg
+*.pdf
 # Directories
 __pycache__
 old_code
