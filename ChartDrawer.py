@@ -660,12 +660,18 @@ if __name__ == "__main__":
     n_magic = {}
     z_magic = {}
     for nuclide in data:
-        args.names=False
-        args.halflives=False
+        if args.list_of_targets is not None:
+            args.names=False
+            args.halflives=False
+        if args.list_of_products is not None:
+            args.names=False
+            args.halflives=False    
         N = nuclide.N
         Z = nuclide.Z
         target_element = nuclide.element
         target_decay_mode = nuclide.decay_modes[0]
+        print('Nuclide: ',str(Z+N)+target_element)
+        print(nuclide.decay_modes)
         if N in MAGIC_NUMBERS:
             if n_magic.get(N) is not None:
                 if n_magic[N][1] < Z:
