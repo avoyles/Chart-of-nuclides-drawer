@@ -311,6 +311,24 @@ def _draw_line(layer, begin, end, name):
     line.setAttribute("y2", str(y2))
     layer.appendChild(line)
 
+def _draw_border_line(layer, begin, end, name):
+    """Draws line, begin and end should be a lists of [x,y]
+    coordinates of line"""
+    x1 = begin[0]
+    y1 = begin[1]
+    x2 = end[0]
+    y2 = end[1]
+    line = svg.createElement("line")
+    line.setAttribute("id", str(name))
+    # line.setAttribute("stroke", "#ff0000")
+    line.setAttribute("stroke", "#ffff00")
+    line.setAttribute("stroke-width", "2.0")
+    line.setAttribute("x1", str(x1))
+    line.setAttribute("y1", str(y1))
+    line.setAttribute("x2", str(x2))
+    line.setAttribute("y2", str(y2))
+    layer.appendChild(line)    
+
 def draw_nuclide(nuclide, layers, position, args):
     """ Draws nuclide data, including primary and secondary decay modes,
         and name of nuclide """
@@ -486,6 +504,29 @@ def draw_nuclide(nuclide, layers, position, args):
         _draw_text(layers[3], [tx, ty], font_color, SIZE_FONT_HL,
                    half_life_string)
 
+def draw_target_border(layers, n_magic, z_magic,
+                             n_limits, z_limits, size):
+    for N, limits in n_magic.items():
+        x1 = (N - n_limits[0] + 1) * SIZE_FIELD + SIZE_GAP / 2
+        x2 = x1
+        y1 = size[1] - (limits[1] - z_limits[0] + 2) * SIZE_FIELD - SIZE_GAP / 2
+        y2 = size[1] - (limits[0] - z_limits[0] + 1) * SIZE_FIELD - SIZE_GAP / 2
+        _draw_border_line(layers[4], [x1, y1], [x2, y2], "{}n0".format(N))
+        x1 = (N - n_limits[0] + 2) * SIZE_FIELD + SIZE_GAP / 2
+        x2 = x1
+        _draw_border_line(layers[4], [x1, y1], [x2, y2], "{}n1".format(N))
+
+    Z_counter=0
+    for Z, limits in z_magic.items():
+        x1 = (limits[0] - n_limits[0] + 1) * SIZE_FIELD + SIZE_GAP / 2 
+        x2 = (limits[1] - n_limits[0] + 2) * SIZE_FIELD + SIZE_GAP / 2
+        y1 = size[1] - (Z - Z_counter - z_limits[0] + 2) * SIZE_FIELD - SIZE_GAP / 2
+        y2 = y1
+        _draw_border_line(layers[4], [x1, y1], [x2, y2], "{}z0".format(Z))
+        y1 = size[1] - (Z - Z_counter - z_limits[0] + 1) * SIZE_FIELD - SIZE_GAP / 2
+        y2 = y1
+        _draw_border_line(layers[4], [x1, y1], [x2, y2], "{}z1".format(Z))  
+        Z_counter+=1  
 
 def draw_magic_lines(layers, n_magic, z_magic,
                              n_limits, z_limits, size):
@@ -623,7 +664,7 @@ if __name__ == "__main__":
     # layer3 for text
 
     layers = []
-    for l in range(4):
+    for l in range(5):
         layer = svg.createElement("g")
         layer.setAttribute("id", "layer{}".format(l))
         layer.setAttribute("fill", "none")
@@ -659,19 +700,29 @@ if __name__ == "__main__":
 
     n_magic = {}
     z_magic = {}
+    n_targets = {}
+    z_targets = {}
+    Z_counter=0
     for nuclide in data:
         if args.list_of_targets is not None:
             args.names=False
             args.halflives=False
+            my_flag=False
         if args.list_of_products is not None:
             args.names=False
-            args.halflives=False    
+            args.halflives=False   
+            my_flag=False 
         N = nuclide.N
         Z = nuclide.Z
         target_element = nuclide.element
         target_decay_mode = nuclide.decay_modes[0]
-        print('Nuclide: ',str(Z+N)+target_element)
-        print(nuclide.decay_modes)
+        # print('Nuclide: ',str(Z+N)+target_element)
+        # print(nuclide.decay_modes)
+        # found_isomers = nuclide.isomers
+        # # found_isomers['half_life']
+        # print('Isomeric states: \n', found_isomers)
+        # print(type(found_isomers))
+        # print('Isomer half-life:',found_isomers['half_life'])
         if N in MAGIC_NUMBERS:
             if n_magic.get(N) is not None:
                 if n_magic[N][1] < Z:
@@ -707,9 +758,9 @@ if __name__ == "__main__":
                     if (str(Z+N)+target_element) == target:
                         # in basic_decay_modes:
                         # and target_decay_mode =='is':
-                        print("Success!: ", str(Z+N),target_element)
+                        print("Product Success!: ", str(Z+N),target_element)
                         try:
-                            my_flag=True
+                            # my_flag=True
                             args.names=True
                             args.halflives=True
                         # draw_nuclide(nuclide, layers, [x, y], args)
@@ -744,11 +795,43 @@ if __name__ == "__main__":
                     if  int(cleaned_AAA)==0 and nuclide.decay_modes[0]['mode'] =='is':
                         # in basic_decay_modes:
                         # and target_decay_mode =='is':
-                        print("Success!: ", str(Z+N),target_element)
+                        print("Target Success!: ", str(Z+N),target_element)
                         try:
                             my_flag=True
                             args.names=True
                             args.halflives=True
+
+
+                            print('Z: ', Z)
+                            print('n expansion check: ',n_targets.get(N))
+                            print('z expansion check: ',z_targets.get(Z))
+
+                            n_targets[N] = [Z, Z]
+                            print('n_targets: ',n_targets)
+                            # Z_counter=0
+                            # z_targets[Z] = [N, N]
+                            # print('z_targets: ',z_targets)
+
+                            # if n_targets.get(N) is not None:
+                            #     print('')
+                            #     # print('n_targets: ',n_targets)
+                            # #     if n_targets[N][1] < Z:
+                            # #         n_targets[N][1] = Z
+                            # else:
+                            #     n_targets[N] = [Z, Z]
+                            #     print('n_targets: ',n_targets)
+                            if z_targets.get(Z) is not None:
+                                Z_counter+=1
+                                z_targets[Z+Z_counter] = [N, N]
+                                # Z_counter+=1
+                                # print('')
+                                print('z_targets: ',z_targets)
+                            #     if z_targets[Z][1] < N:
+                            #         z_targets[Z][1] = N
+                            else:
+                                z_targets[Z] = [N, N]
+                                print('z_targets: ',z_targets)
+
                         # draw_nuclide(nuclide, layers, [x, y], args)
                         except IndexError:
                             print('IndexError: nuclide {}'.format(nuclide))
@@ -780,7 +863,18 @@ if __name__ == "__main__":
             draw_nuclide(nuclide, layers, [x, y], args)
         except IndexError:
             print('IndexError: nuclide {}'.format(nuclide))
+    if True:
+        # Draw border around target isotopes
+        try:
+            print('n_targets: ',n_targets)
+            print('z_targets: ',z_targets)
+            draw_target_border(layers, n_targets, z_targets, n_limits, z_limits, size)
+            # draw_nuclide(nuclide, layers, [x, y], args)
+        except IndexError:
+            print('IndexError: nuclide {}'.format(nuclide))
     if args.magic:
+        print('nmagic: ',n_magic)
+        print(type(n_magic))
         draw_magic_lines(layers, n_magic, z_magic, n_limits, z_limits, size)
     if args.numbers:
         draw_numbers(layers, shape, n_limits, z_limits, size)
