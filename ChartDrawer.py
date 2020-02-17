@@ -624,14 +624,16 @@ if __name__ == "__main__":
         args.names=False
         args.halflives=False
         print('Drawing products: ',args.list_of_products) 
-        individual_products = args.list_of_products.split(' ')
+        # p_string = args.list_of_products.strip()
+        # print('*',p_string,'*')
+        individual_products = args.list_of_products.strip().split(' ')
 
     if args.list_of_targets is not None:
         # Only print target names
         args.names=False
         args.halflives=False
         print('Drawing targets : ',args.list_of_targets) 
-        individual_targets = args.list_of_targets.split(' ')
+        individual_targets = args.list_of_targets.strip().split(' ')
 
     if args.N[0] > args.N[1]:
         print('Wrong N range {}, {}'.format(args.N[0], args.N[1]))
@@ -758,7 +760,7 @@ if __name__ == "__main__":
                     if (str(Z+N)+target_element) == target:
                         # in basic_decay_modes:
                         # and target_decay_mode =='is':
-                        print("Product Success!: ", str(Z+N),target_element)
+                        # print("Product Success!: ", str(Z+N),target_element)
                         try:
                             # my_flag=True
                             args.names=True
@@ -777,12 +779,13 @@ if __name__ == "__main__":
         if args.list_of_targets is not None:
             # args.names=False
             # args.halflives=False
+            # print("Individual targets: ",individual_targets)
             for target in individual_targets:
                 # print('Nuclide: ',str(Z+N)+target_element)
                 cleaned_target = re.sub(r'\d+', '', target)
                 # print('Cleaned Target: ',cleaned_target)
                 try:
-                    cleaned_AAA = re.search('(\d+?)',  target).group(1)
+                    cleaned_AAA = int(re.findall(r'\d+',  target)[0])
                 except:
                     cleaned_AAA = '-1'
                 # print('Cleaned AAA: ',cleaned_AAA)    
@@ -795,19 +798,19 @@ if __name__ == "__main__":
                     if  int(cleaned_AAA)==0 and nuclide.decay_modes[0]['mode'] =='is':
                         # in basic_decay_modes:
                         # and target_decay_mode =='is':
-                        print("Target Success!: ", str(Z+N),target_element)
+                        # print("nat Target Success!: ", str(Z+N),target_element)
                         try:
                             my_flag=True
                             args.names=True
                             args.halflives=True
 
 
-                            print('Z: ', Z)
-                            print('n expansion check: ',n_targets.get(N))
-                            print('z expansion check: ',z_targets.get(Z))
+                            # print('Z: ', Z)
+                            # print('n expansion check: ',n_targets.get(N))
+                            # print('z expansion check: ',z_targets.get(Z))
 
                             n_targets[N] = [Z, Z]
-                            print('n_targets: ',n_targets)
+                            # print('n_targets: ',n_targets)
                             # Z_counter=0
                             # z_targets[Z] = [N, N]
                             # print('z_targets: ',z_targets)
@@ -825,12 +828,57 @@ if __name__ == "__main__":
                                 z_targets[Z+Z_counter] = [N, N]
                                 # Z_counter+=1
                                 # print('')
-                                print('z_targets: ',z_targets)
+                                # print('z_targets: ',z_targets)
                             #     if z_targets[Z][1] < N:
                             #         z_targets[Z][1] = N
                             else:
                                 z_targets[Z] = [N, N]
-                                print('z_targets: ',z_targets)
+                                # print('z_targets: ',z_targets)
+
+                        # draw_nuclide(nuclide, layers, [x, y], args)
+                        except IndexError:
+                            print('IndexError: nuclide {}'.format(nuclide))
+                        # args.names=False
+                        # args.halflives=False
+                    elif int(cleaned_AAA)!=0 and (str(Z+N)+target_element) == target and nuclide.decay_modes[0]['mode'] =='is':
+                        # in basic_decay_modes:
+                        # and target_decay_mode =='is':
+                        # print("Stable Target Success!: ", str(Z+N),target_element)
+                        try:
+                            my_flag=True
+                            args.names=True
+                            args.halflives=True
+
+
+                            # print('Z: ', Z)
+                            # print('n expansion check: ',n_targets.get(N))
+                            # print('z expansion check: ',z_targets.get(Z))
+
+                            n_targets[N] = [Z, Z]
+                            # print('n_targets: ',n_targets)
+                            # Z_counter=0
+                            # z_targets[Z] = [N, N]
+                            # print('z_targets: ',z_targets)
+
+                            # if n_targets.get(N) is not None:
+                            #     print('')
+                            #     # print('n_targets: ',n_targets)
+                            # #     if n_targets[N][1] < Z:
+                            # #         n_targets[N][1] = Z
+                            # else:
+                            #     n_targets[N] = [Z, Z]
+                            #     print('n_targets: ',n_targets)
+                            if z_targets.get(Z) is not None:
+                                Z_counter+=1
+                                z_targets[Z+Z_counter] = [N, N]
+                                # Z_counter+=1
+                                # print('')
+                                # print('z_targets: ',z_targets)
+                            #     if z_targets[Z][1] < N:
+                            #         z_targets[Z][1] = N
+                            else:
+                                z_targets[Z] = [N, N]
+                                # print('z_targets: ',z_targets)
 
                         # draw_nuclide(nuclide, layers, [x, y], args)
                         except IndexError:
@@ -840,7 +888,7 @@ if __name__ == "__main__":
                     elif (str(Z+N)+target_element) == target:
                         # in basic_decay_modes:
                         # and target_decay_mode =='is':
-                        print("Success!: ", str(Z+N),target_element)
+                        # print("Matched Success!: ", str(Z+N),target_element)
                         try:
                             my_flag=True
                             args.names=True
@@ -866,15 +914,15 @@ if __name__ == "__main__":
     if True:
         # Draw border around target isotopes
         try:
-            print('n_targets: ',n_targets)
-            print('z_targets: ',z_targets)
+            # print('n_targets: ',n_targets)
+            # print('z_targets: ',z_targets)
             draw_target_border(layers, n_targets, z_targets, n_limits, z_limits, size)
             # draw_nuclide(nuclide, layers, [x, y], args)
         except IndexError:
             print('IndexError: nuclide {}'.format(nuclide))
     if args.magic:
-        print('nmagic: ',n_magic)
-        print(type(n_magic))
+        # print('nmagic: ',n_magic)
+        # print(type(n_magic))
         draw_magic_lines(layers, n_magic, z_magic, n_limits, z_limits, size)
     if args.numbers:
         draw_numbers(layers, shape, n_limits, z_limits, size)
