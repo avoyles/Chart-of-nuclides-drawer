@@ -378,7 +378,7 @@ def _draw_line(layer, begin, end, name):
     line = svg.createElement("line")
     line.setAttribute("id", str(name))
     line.setAttribute("stroke", "#000000")
-    line.setAttribute("stroke-width", "1.0")
+    line.setAttribute("stroke-width", "2.0")
     line.setAttribute("x1", str(x1))
     line.setAttribute("y1", str(y1))
     line.setAttribute("x2", str(x2))
