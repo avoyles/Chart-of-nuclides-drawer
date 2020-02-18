@@ -19,7 +19,7 @@ provided in xml document.
     --magic      Disable magic numbers
     --numbers    Disable numbers along axis
     --unknown    Disable isotopes with unknown decay mode
-    --isomers    Disable detialed isomer data
+    --isomers    Disable detailed isomer data
     --z Z Z      Atomic number Z range (int), default: [0, 120]
     --n N N      Neutron number N range (int), default: [0, 180]
     --p '...'    List of product isotopes to draw
