@@ -1,9 +1,5 @@
 #!/usr/bin/env python3
 """
-Copyright Krzysztof Miernik 2012
-k.a.miernik@gmail.com 
-
-Distributed under GNU General Public Licence v3
 
 This script produces chart of nuclides in svg format from data
 provided in xml document.
@@ -18,12 +14,16 @@ provided in xml document.
 
     optional arguments:
     -h, --help   show this help message and exit
-    --names      Show names
-    --halflives  Show half-lives
-    --magic      Show magic numbers
-    --numbers    Show numbers along axis
+    --names      Disable names
+    --halflives  Disable half-lives
+    --magic      Disable magic numbers
+    --numbers    Disable numbers along axis
+    --unknown    Disable isotopes with unknown decay mode
+    --isomers    Disable detialed isomer data
     --z Z Z      Atomic number Z range (int), default: [0, 120]
     --n N N      Neutron number N range (int), default: [0, 180]
+    --p '...'    List of product isotopes to draw
+    --t '...'    List of target isotopes to draw (mass 0 draws all stable isotopes)
 
    The Nubase2xml.py script will generate the input xml file from Nubase format
 
@@ -66,6 +66,7 @@ from svglib.svglib import svg2rlg
 from reportlab.graphics import renderPDF
 import cairosvg
 import subprocess
+import numpy as np
 
 
 # Definition of colors used for decay modes
@@ -161,13 +162,13 @@ def _draw_isomer_rectangle(layer, position, color, name):
     y = position[1]
     rectangle = svg.createElement("rect")
     rectangle.setAttribute("id", '{}'.format(name))
-    rectangle.setAttribute("width", str(SIZE_SHAPE/2.0))
-    rectangle.setAttribute("height", str(SIZE_SHAPE*0.7))
+    rectangle.setAttribute("width", str((SIZE_SHAPE/2.0)-0.5))
+    rectangle.setAttribute("height", str((SIZE_SHAPE*0.7)-0.5))
     # rectangle.setAttribute("stroke", "#000000")
     # rectangle.setAttribute("stroke-width", "0.5")
     rectangle.setAttribute("fill", color)
-    rectangle.setAttribute("x", str(position[0]+0.5))
-    rectangle.setAttribute("y", str(position[1] + (SIZE_SHAPE*0.3) - 0.5))
+    rectangle.setAttribute("x", str(position[0]+0.3))
+    rectangle.setAttribute("y", str(position[1] + (SIZE_SHAPE*0.3) + 0.2))
     layer.appendChild(rectangle)
 
 
@@ -263,10 +264,10 @@ def _draw_small_triangle(layer, position, color, name, corner = 'rb'):
 def _draw_small_isomer_triangle(layer, position, color, name, corner = 'rb'):
     """Draws small triangle in the corner of rectangle,
     position is left top corner of rectangle"""
-    x = position[0]- (SIZE_SHAPE/2.0) 
-    y = position[1]
+    x = position[0]- (SIZE_SHAPE/2.0) - 0.05
+    y = position[1] - 0.05
 
-    print('x,y: ',x,y)
+    # print('x,y: ',x,y)
     small_triangle = svg.createElement("polygon")
     small_triangle.setAttribute("id", '{}'.format(name))
     small_triangle.setAttribute("stroke", "#000000")
@@ -387,8 +388,8 @@ def _draw_line(layer, begin, end, name):
 def _draw_isomer_line(layer, begin, end, name):
     """Draws line, begin and end should be a lists of [x,y]
     coordinates of line"""
-    print('isomer begin: ',begin)
-    print('isomer end: ',end)
+    # print('isomer begin: ',begin)
+    # print('isomer end: ',end)
     x1 = begin[0]
     y1 = begin[1]
     x2 = end[0]
@@ -406,8 +407,8 @@ def _draw_isomer_line(layer, begin, end, name):
 def _draw_border_line(layer, begin, end, name):
     """Draws line, begin and end should be a lists of [x,y]
     coordinates of line"""
-    print('begin: ',begin)
-    print('end: ',end)
+    # print('begin: ',begin)
+    # print('end: ',end)
     x1 = begin[0]
     y1 = begin[1]
     x2 = end[0]
@@ -560,7 +561,7 @@ def draw_nuclide(nuclide, layers, position,  args, is_isomer=False):
     # if is_isomer:
         # print('Plotting isomer...', str(nuclide.A) ,nuclide.element)
         if args.names:
-            print('Plotting isomer...', str(nuclide.A) ,nuclide.element)
+            # print('Plotting isomer...', str(nuclide.A) ,nuclide.element)
             element_name = "$*" + str(nuclide.A) + "*$" + nuclide.element 
 
             tx = position[0] + SIZE_SHAPE / 2 
@@ -595,15 +596,15 @@ def draw_nuclide(nuclide, layers, position,  args, is_isomer=False):
                     # print(isomer_key)
                     isomer_half_life = isomer_key['value']
                     isomer_half_life_units = isomer_key['unit']
-                    print('half-life: ', isomer_half_life, ' ', isomer_half_life_units)
+                    # print('half-life: ', isomer_half_life, ' ', isomer_half_life_units)
                     # isomer_decay_modes = isomer_key['decay_modes']
                     if isomer_half_life_units in {'d', 'h', 'm','s','Yy','Zy','Ey','Py','Ty','Gy','My','ky','y'}:
                         # is_isomer=True
                         # print(type(possible_isomers['decay_modes']))
                         isomer_decay_modes = possible_isomers['decay_modes']
                         # for dict_index in range(len(isomer_decay_modes)):
-                        print('number of isomers: ',len(isomer_decay_modes))
-                        print('isomer decay modes:\n', isomer_decay_modes)
+                        # print('number of isomers: ',len(isomer_decay_modes))
+                        # print('isomer decay modes:\n', isomer_decay_modes)
                         # print('isomer decay modes:', isomer_decay_modes[dict_index])
 
                         
@@ -615,31 +616,32 @@ def draw_nuclide(nuclide, layers, position,  args, is_isomer=False):
                         isomer_tertiary_size  = None
                         if len(isomer_decay_modes) > 0:
                             for i in range(0, 1):
-                                print('Mode: ',isomer_decay_modes[i]['mode'])
+                                pri_mode_str = isomer_decay_modes[i]['mode']
+                                # print('Mode: ',pri_mode_str)
                                 try:
-                                    if isomer_decay_modes[i]['mode'] in basic_decay_modes:
+                                    if (pri_mode_str in basic_decay_modes) or (pri_mode_str == 'it'):
                                         v = float(isomer_decay_modes[i]['value'].strip('#'))
                                         isomer_primary_color = COLORS[isomer_decay_modes[i]['mode']]
-                                        print('loop 0 color: ',isomer_primary_color)
+                                        # print('loop 0 color: ',isomer_primary_color)
                                 except ValueError:
                                     continue                    
 
                         if len(isomer_decay_modes) > 1:
                             for i in range(1, len(isomer_decay_modes)):
-                                print('Secondary Mode: ',isomer_decay_modes[i]['mode'])
+                                # print('Secondary Mode: ',isomer_decay_modes[i]['mode'])
                                 sec_mode_str = isomer_decay_modes[i]['mode']
-                                print(type(sec_mode_str))
-                                print(type('it'))
-                                print(sec_mode_str == 'it')
-                                print('Testing at line 575')
+                                # print(type(sec_mode_str))
+                                # print(type('it'))
+                                # print(sec_mode_str == 'it')
+                                # print('Testing at line 575')
                                 try:
                                     # print(nuclide.decay_modes[i]['mode'] == 'it')
-                                    print('Testing at line 580')
+                                    # print('Testing at line 580')
                                     if ((isomer_decay_modes[i]['mode'] in basic_decay_modes) or (sec_mode_str == 'it')):
-                                        print('Testing at line 582')
+                                        # print('Testing at line 582')
                                         v = float(isomer_decay_modes[i]['value'].strip('#'))
                                         isomer_secondary_color = COLORS[isomer_decay_modes[i]['mode']]
-                                        print('loop 1 secondary color: ',isomer_secondary_color)
+                                        # print('loop 1 secondary color: ',isomer_secondary_color)
                                         if v > 5.0 and isomer_primary_color != COLORS['is']:
                                             isomer_secondary_size = 'large'
                                         elif v > 0.0:
@@ -650,7 +652,7 @@ def draw_nuclide(nuclide, layers, position,  args, is_isomer=False):
                                         isomer_secondary_color = COLORS['cluster']
                                         break
                                 except ValueError:
-                                    print('Warning at line 588')
+                                    # print('Warning at line 588')
                                     continue
 
                             if ( len(isomer_decay_modes) > 2 and
@@ -672,7 +674,7 @@ def draw_nuclide(nuclide, layers, position,  args, is_isomer=False):
                                             break
                                     except ValueError:
                                         continue
-                            print('isomer secondary color: ',isomer_secondary_color)
+                            # print('isomer secondary color: ',isomer_secondary_color)
 
                             # isomer_secondary_color = isomer_primary_color
                             
@@ -719,22 +721,48 @@ def draw_nuclide(nuclide, layers, position,  args, is_isomer=False):
                                                  '{}2'.format(nuclide), corner)
 
                         _draw_isomer_rectangle(layers[0], position, isomer_primary_color, "{}{}ib".format(nuclide.A,nuclide.Z))
-                        loc_1 = [position[0]+(SIZE_SHAPE/2.0)-0.5,  position[1] + (SIZE_SHAPE*0.3) +0.5]
-                        print('x_loc',loc_1)
-                        loc_2 = [position[0]+(SIZE_SHAPE/2.0)-0.5, position[1] + (SIZE_SHAPE) -0.5 ]
+                        loc_1 = [position[0]+(SIZE_SHAPE/2.0),  position[1] + (SIZE_SHAPE*0.3) +0.2]
+                        # print('x_loc',loc_1)
+                        loc_2 = [position[0]+(SIZE_SHAPE/2.0), position[1] + (SIZE_SHAPE) -0.2 ]
                         # loc_2 =[42.5, 34.0]
-                        print('y_loc',loc_2)
+                        # print('y_loc',loc_2)
 
-                        _draw_isomer_line(layers[1], loc_1, loc_2, "jbjjb")
+                        _draw_isomer_line(layers[1], loc_1, loc_2, "{}{}iline".format(nuclide.A,nuclide.Z))
 
-                        # _draw_text(layers[3], [tx, ty], font_color, SIZE_FONT, element_name)
-                        # _draw_text(layers[3], [tx, ty], font_color, SIZE_FONT, element_name)
+                        # isomer_text_y = (loc_1[1] + loc_2[1]) * 0.5
+                        isomer_text_y1 = position[1] + SIZE_SHAPE * 0.5
+                        isomer_text_y2 = isomer_text_y1 + SIZE_FONT_HL*0.75
+                        isomer_text_x1 = position[0] + 0.25*SIZE_SHAPE
+                        isomer_text_x2 = position[0] + 0.75*SIZE_SHAPE
+
+                        half_life_string = nuclide.half_life['value'] 
+                        sci_re = r'^[-+]?[0-9]*\.?[0-9]+([eE]+[-+]?[0-9]+)$'
+                        if re.search(sci_re, half_life_string) is not None:
+                            try:
+                                hl = float(half_life_string)
+                                half_life_string = '{0:.1e}'.format(hl)
+                            except TypeError:
+                                pass
+                        if nuclide.half_life['value'] != '?':
+                            # half_life_string += 
+                            half_life_unit = nuclide.half_life['unit']
+                            if nuclide.half_life['relation'] != '=':
+                                half_life_string = nuclide.half_life['relation'] 
+                                half_life_unit = nuclide.half_life['value'] 
+                        else:
+                            half_life_string = nuclide.decay_modes[0]['value']+'%'
+
+
+                        _draw_text(layers[3], [isomer_text_x2, isomer_text_y1], font_color, SIZE_FONT_HL-2, half_life_string)
+                        _draw_text(layers[3], [isomer_text_x2, isomer_text_y2], font_color, SIZE_FONT_HL-2, half_life_unit)
+                        _draw_text(layers[3], [isomer_text_x1, isomer_text_y1], font_color, SIZE_FONT_HL-2, isomer_half_life)
+                        _draw_text(layers[3], [isomer_text_x1, isomer_text_y2], font_color, SIZE_FONT_HL-2, isomer_half_life_units)
 
 
             # _draw_isomer_line(layers[0], [145.0, 45.0], [161.0, 45.0], "{}{}il".format(nuclide.A,nuclide.Z))
 
-            isomer_color = COLORS[nuclide.decay_modes[0]['mode']]
-            print('color: ', isomer_color)
+            # isomer_color = COLORS[nuclide.decay_modes[0]['mode']]
+            # print('color: ', isomer_color)
             # print('isomer decay mode: ', )
 
     # Normal plotting
@@ -902,17 +930,20 @@ if __name__ == "__main__":
         # Only print target names
         args.names=False
         args.halflives=False
-        print('Drawing products: ',args.list_of_products) 
+        # print('Drawing products: ',args.list_of_products) 
         # p_string = args.list_of_products.strip()
         # print('*',p_string,'*')
         individual_products = list(set(args.list_of_products.strip().split(' ')))
+        print('Drawing products: ',individual_products) 
 
     if args.list_of_targets is not None:
         # Only print target names
         args.names=False
         args.halflives=False
-        print('Drawing targets : ',args.list_of_targets) 
+        # print('Drawing targets : ',args.list_of_targets) 
         individual_targets = list(set(args.list_of_targets.strip().split(' ')))
+        print('Drawing targets : ',individual_targets) 
+
 
     if args.N[0] > args.N[1]:
         print('Wrong N range {}, {}'.format(args.N[0], args.N[1]))
@@ -998,7 +1029,7 @@ if __name__ == "__main__":
         Z = nuclide.Z
         target_element = nuclide.element
         target_decay_mode = nuclide.decay_modes[0]
-        print('Nuclide: ',str(Z+N)+target_element)
+        # print('Nuclide: ',str(Z+N)+target_element)
         # print(nuclide.decay_modes)
         found_isomers = nuclide.isomers
         # found_isomers['half_life']

@@ -73,8 +73,3 @@ document. Note that some informations are not being used on the chart
 (e.g. mass of nuclides, isomeric states), but are present in the data base.
 The Nuclide class can easily used to write scripts using these informations 
 as well.
-
-Copyright Krzysztof Miernik 2012
-k.a.miernik@gmail.com 
-
-Distributed under GNU General Public Licence v3
