@@ -67,6 +67,8 @@ from reportlab.graphics import renderPDF
 import cairosvg
 import subprocess
 import numpy as np
+import platform
+import os
 
 
 # Definition of colors used for decay modes
@@ -558,6 +560,7 @@ def draw_nuclide(nuclide, layers, position,  args, is_isomer=False):
 
     font_color = FONT_COLOR_BRIGHT if primary_color == COLORS['is'] else FONT_COLOR_DARK
     if (args.isomers and is_isomer):
+        half_life_unit = ''
     # if is_isomer:
         # print('Plotting isomer...', str(nuclide.A) ,nuclide.element)
         if args.names:
@@ -751,6 +754,7 @@ def draw_nuclide(nuclide, layers, position,  args, is_isomer=False):
                                 half_life_unit = nuclide.half_life['value'] 
                         else:
                             half_life_string = nuclide.decay_modes[0]['value']+'%'
+                            half_life_unit ='?'
 
 
                         _draw_text(layers[3], [isomer_text_x2, isomer_text_y1], font_color, SIZE_FONT_HL-2, half_life_string)
@@ -1301,6 +1305,7 @@ if __name__ == "__main__":
 
     # print(args.outfile)
     outfile_string = str(args.outfile).split("name='")[1].split("' mode='w'")[0]
+    # print(outfile_string)
 
     tempfile = open(outfile_string).read()
     # print(type(tempfile))
@@ -1323,7 +1328,22 @@ if __name__ == "__main__":
     # cairosvg.svg2pdf(url='outfile.svg', write_to='image.pdf')
 
     # Save to PDF via inkscape
-    bashCommand = "inkscape " + outfile_string + " -A " + outfile_string[:-3] + "pdf"
-    # print(bashCommand)
-    process = subprocess.Popen(bashCommand.split(), stdout=subprocess.PIPE)
-    # output, error = process.communicate()
+    #
+    # Need to detect OS for appropriate commands
+    os_string = platform.system()
+    print('OS detected: ',os_string)
+    # Linux
+    if os_string == 'Linux':
+        bashCommand = "inkscape " + outfile_string + " -A " + outfile_string[:-3] + "pdf"
+        # print(bashCommand)
+        process = subprocess.Popen(bashCommand.split(), stdout=subprocess.PIPE)
+        # output, error = process.communicate()
+    # Mac
+    elif os_string == 'Darwin':
+        # print('MacOS PDF conversion is currently unsupported, sorry!')
+        os.system('inkscape --export-type="pdf" '+ outfile_string)
+    # Windows
+    elif os_string == 'Windows':
+        print('Windows PDF conversion is currently unsupported, sorry!')
+    else:
+        print('Unable to recognize OS "',os_string,'".')
